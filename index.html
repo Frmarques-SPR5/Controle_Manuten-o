@@ -378,15 +378,18 @@
             }).catch(() => showNotification("Erro de conexão.", "#c53030"));
         }
 
-        // PUXA OS DADOS E CALCULA O STATUS ATUAL DE CADA GAIOLA
+        // PUXA OS DADOS E CALCULA O STATUS ATUAL DE CADA GAIOLA (ATUALIZADO SEM CACHE)
         function carregarDadosDaNuvem() {
-            fetch(GOOGLE_SCRIPT_URL)
+            fetch(GOOGLE_SCRIPT_URL + "?_ts=" + Date.now())
                 .then(res => res.json())
                 .then(data => {
                     listaGlobalPlanilha = data;
                     processarEExibirListas();
                 })
-                .catch(() => showNotification("Erro ao atualizar dados da nuvem.", "#c53030"));
+                .catch((err) => {
+                    console.error(err);
+                    showNotification("Erro ao atualizar dados da nuvem.", "#c53030");
+                });
         }
 
         function processarEExibirListas() {
@@ -408,8 +411,9 @@
             Object.keys(estadoGaiolas).forEach(qr => {
                 const gaiola = estadoGaiolas[qr];
                 let linkFotoHtml = gaiola.fotoUrl ? `<br><a href="${gaiola.fotoUrl}" target="_blank" class="photo-link">🖼️ Ver Foto</a>` : '';
+                let statusLimpo = String(gaiola.status).trim();
 
-                if (gaiola.status === "Esperando Conserto") {
+                if (statusLimpo === "Esperando Conserto") {
                     totalPendentes++;
                     divExecucao.innerHTML += `
                         <div class="cage-item">
@@ -421,7 +425,7 @@
                             <button class="btn-action-item" onclick="abrirModalConcluir('${gaiola.qrCode}')">🔧 Concluir Conserto</button>
                         </div>
                     `;
-                } else if (gaiola.status === "Gaiola Consertada" || gaiola.status === "Outros Serviços") {
+                } else if (statusLimpo === "Gaiola Consertada" || statusLimpo === "Outros Serviços") {
                     totalProntas++;
                     divEntrega.innerHTML += `
                         <div class="cage-item">
@@ -486,7 +490,6 @@
             }).catch(() => showNotification("Erro de conexão ao finalizar.", "#c53030"));
         }
 
-        // Filtra o histórico visualmente por código da gaiola
         function filtrarHistoricoVisual() {
             const termo = document.getElementById('search-input').value.toLowerCase();
             const itensFila = document.querySelectorAll('#lista-entrega .cage-item');
