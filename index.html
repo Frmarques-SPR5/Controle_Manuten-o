@@ -179,7 +179,7 @@
             color: white;
         }
 
-        /* Modal customizado para fechamento */
+        /* Modal fechamento */
         .modal-concluir {
             display: none;
             position: fixed;
@@ -262,10 +262,10 @@
         </p>
         
         <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">Problema Constatado / Serviço na Execução:</label>
-        <textarea id="input-problema-execucao" class="text-field" rows="2" placeholder="Ex: Trocado rolamento da roda e alinhado estrutura..."></textarea>
+        <textarea id="input-problema-execucao" class="text-field" rows="2" placeholder="Ex: Trocado rolamento da roda..."></textarea>
 
         <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">Observação de Entrega:</label>
-        <input type="text" id="input-observacao-entrega" class="text-field" placeholder="Ex: Liberada para operação do Turno A">
+        <input type="text" id="input-observacao-entrega" class="text-field" placeholder="Ex: Liberada para operação">
 
         <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">O problema foi solucionado?</label>
         <select id="select-solucionado" class="text-field" style="font-size:0.95rem; height:40px;">
@@ -277,7 +277,8 @@
     </div>
 
     <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZpv1S-rvZeD7gVeQn4MY3mib9NfjeSeFsJAzHPFjD5rlHwipU2kO_XwOBlZ4p2csHYg/exec";
+        // Link novo injetado com sucesso!
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbynsFTcixKmsCckhcK-_FDooBC3vh6BVG4mtLpKrUYiXeaYcNskXM2nFuPeHNW0YPoWGg/exec";
         
         let infoGaiolaScaneada = "";
         let listaGlobalPlanilha = [];
@@ -311,7 +312,6 @@
             showNotification("QR Code Lido! Digite o problema apresentado para prosseguir.", "#2b6cb0");
         }
 
-        // SALVA DA ETAPA 1
         function enviarDadosEntrada() {
             if(!infoGaiolaScaneada) return;
             const probSeparacao = document.getElementById('input-problema-separacao').value.trim();
@@ -376,7 +376,6 @@
 
                 if (statusLimpo === "Esperando Conserto") {
                     totalPendentes++;
-                    // Escapa aspas para evitar quebra no HTML
                     let probSeguro = (gaiola.problemaSeparacao || "Não informado").replace(/'/g, "\\'").replace(/"/g, '\\"');
                     
                     divExecucao.innerHTML += `
@@ -435,7 +434,6 @@
             document.getElementById('select-solucionado').value = "Sim";
         }
 
-        // SALVA DA ETAPA 2 PARA A 3
         function enviarDadosSaida() {
             const probExecucao = document.getElementById('input-problema-execucao').value.trim();
             const obsEntrega = document.getElementById('input-observacao-entrega').value.trim();
@@ -443,14 +441,14 @@
 
             showNotification("Salvando encerramento técnico...", "#4a5568");
             
-            const agora = new Date();
-            const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
+            const ago = new Date();
+            const dataFormatada = ago.toLocaleDateString('pt-BR') + ' ' + ago.toLocaleTimeString('pt-BR');
 
             const payload = {
                 qrCode: gaiolaSelecionadaParaConcluir,
                 status: "Gaiola Consertada",
                 dataHora: dataFormatada,
-                problemaSeparacao: problemaSeparacaoOriginal, // Carrega o histórico da triagem junto
+                problemaSeparacao: problemaSeparacaoOriginal, 
                 problemaExecucao: probExecucao || "Não informado",
                 observacaoEntrega: obsEntrega || "Sem observações",
                 solucionado: resolvido
