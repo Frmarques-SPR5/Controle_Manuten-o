@@ -9,7 +9,7 @@
 
     <style>
         :root {
-            --blue-selected: #0056b3; /* Azul padrão para a aba selecionada */
+            --blue-selected: #0056b3; 
             --step2-color: #dd6b20;
             --step3-color: #319795;
             --bg-color: #f7fafc;
@@ -40,7 +40,7 @@
             box-sizing: border-box;
         }
 
-        /* Abas Principais (As 3 Partes) */
+        /* Abas Principais */
         .workflow-nav {
             display: flex;
             background: #edf2f7;
@@ -63,7 +63,6 @@
             text-align: center;
         }
 
-        /* Força todas as abas a ficarem AZUIS quando estiverem ativas/selecionadas */
         .nav-btn.active {
             background-color: var(--blue-selected) !important;
             color: white !important;
@@ -73,7 +72,7 @@
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
 
-        /* Cards e Boxes */
+        /* Cards */
         .card {
             background: var(--card-bg);
             padding: 15px;
@@ -97,7 +96,6 @@
             border: 2px dashed #cbd5e0;
         }
 
-        /* Inputs de Imagem e Botões */
         .action-box {
             margin-top: 15px;
             background: #edf2f7;
@@ -117,7 +115,7 @@
             cursor: pointer;
         }
 
-        /* Estilos das listas dinâmicas */
+        /* Itens da Lista */
         .cage-item {
             border-left: 5px solid #edf2f7;
             padding: 12px;
@@ -150,7 +148,6 @@
             width: 100%;
         }
 
-        /* Barra de Busca Geral */
         .search-box {
             width: 100%;
             padding: 12px;
@@ -161,7 +158,6 @@
             font-size: 1rem;
         }
 
-        /* Notificação */
         #notification {
             display: none;
             padding: 12px;
@@ -209,191 +205,4 @@
         </div>
 
         <div id="panel-entrega" class="tab-panel">
-            <input type="text" id="search-input" class="search-box" placeholder="🔍 Buscar gaiola no histórico geral..." oninput="filtrarHistoricoVisual()">
-            
-            <div class="card">
-                <h3 style="color: var(--step3-color)">Histórico de Gaiolas Prontas / Entregues</h3>
-                <div id="lista-entrega" class="entrega">
-                    <p style="text-align:center; color:#718096; font-style:italic;">Carregando histórico...</p>
-                </div>
-            </div>
-        </div>
-
-    </div>
-
-    <script>
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZpv1S-rvZeD7gVeQn4MY3mib9NfjeSeFsJAzHPFjD5rlHwipU2kO_XwOBlZ4p2csHYg/exec";
-        
-        let infoGaiolaScaneada = "";
-        let listaGlobalPlanilha = [];
-
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            
-            document.getElementById(`panel-${tabName}`).classList.add('active');
-            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
-            
-            if (tabName === 'execucao' || tabName === 'entrega') {
-                carregarDadosDaNuvem();
-            }
-        }
-
-        function showNotification(text, bgColor) {
-            const note = document.getElementById('notification');
-            note.innerText = text;
-            note.style.backgroundColor = bgColor;
-            note.style.display = 'block';
-            setTimeout(() => { note.style.display = 'none'; }, 4000);
-        }
-
-        // Evento do Scanner QR
-        function onScanSuccess(decodedText, decodedResult) {
-            infoGaiolaScaneada = decodedText;
-            document.getElementById('txt-gaiola-entrada').innerText = decodedText;
-            document.getElementById('separacao-action').style.display = 'block';
-            showNotification("QR Code Lido! Clique no botão para confirmar a entrada.", "#2b6cb0");
-        }
-
-        // SALVA NA ETAPA 1
-        function enviarDadosEntrada() {
-            if(!infoGaiolaScaneada) return;
-            showNotification("Enviando dados para a nuvem...", "#4a5568");
-            
-            const agora = new Date();
-            const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
-
-            const payload = {
-                qrCode: infoGaiolaScaneada,
-                status: "Esperando Conserto",
-                dataHora: dataFormatada
-            };
-
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            }).then(() => {
-                showNotification("Sucesso! Gaiola enviada para a oficina.", "#2f855a");
-                document.getElementById('separacao-action').style.display = 'none';
-                infoGaiolaScaneada = "";
-            }).catch(() => showNotification("Erro de conexão.", "#c53030"));
-        }
-
-        // PUXA OS DADOS SEM CACHE
-        function carregarDadosDaNuvem() {
-            fetch(GOOGLE_SCRIPT_URL + "?_ts=" + Date.now())
-                .then(res => res.json())
-                .then(data => {
-                    listaGlobalPlanilha = data;
-                    processarEExibirListas();
-                })
-                .catch((err) => {
-                    console.error(err);
-                    showNotification("Erro ao atualizar dados da nuvem.", "#c53030");
-                });
-        }
-
-        function processarEExibirListas() {
-            let estadoGaiolas = {};
-            
-            listaGlobalPlanilha.forEach(item => {
-                estadoGaiolas[item.qrCode] = item;
-            });
-
-            const divExecucao = document.getElementById('lista-execucao');
-            const divEntrega = document.getElementById('lista-entrega');
-            
-            divExecucao.innerHTML = "";
-            divEntrega.innerHTML = "";
-
-            let totalPendentes = 0;
-            let totalProntas = 0;
-
-            Object.keys(estadoGaiolas).forEach(qr => {
-                const gaiola = estadoGaiolas[qr];
-                let statusLimpo = String(gaiola.status).trim();
-
-                if (statusLimpo === "Esperando Conserto") {
-                    totalPendentes++;
-                    divExecucao.innerHTML += `
-                        <div class="cage-item">
-                            <div class="cage-row">
-                                <span class="cage-id">📦 Gaiola: ${gaiola.qrCode}</span>
-                                <span class="cage-date">${gaiola.dataHora}</span>
-                            </div>
-                            <button class="btn-action-item" onclick="finalizarManutencaoDireta('${gaiola.qrCode}')">🔧 Concluir Conserto</button>
-                        </div>
-                    `;
-                } else if (statusLimpo === "Gaiola Consertada") {
-                    totalProntas++;
-                    divEntrega.innerHTML += `
-                        <div class="cage-item">
-                            <div class="cage-row">
-                                <span class="cage-id">✅ Gaiola: ${gaiola.qrCode}</span>
-                                <span class="cage-date">${gaiola.dataHora}</span>
-                            </div>
-                            <span style="font-size:0.8rem; font-weight:bold; color:#2c7a7b; display:block; margin-top:5px;">${gaiola.status}</span>
-                        </div>
-                    `;
-                }
-            });
-
-            if(totalPendentes === 0) divExecucao.innerHTML = '<p style="text-align:center; color:#718096; font-style:italic;">Oficina limpa! Nenhuma gaiola pendente.</p>';
-            if(totalProntas === 0) divEntrega.innerHTML = '<p style="text-align:center; color:#718096; font-style:italic;">Nenhum registro recente.</p>';
-        }
-
-        // CONCLUI O CONSERTO (SEM PRECISAR DE FOTO)
-        function finalizarManutencaoDireta(qrCode) {
-            if (!confirm(`Deseja finalizar o conserto da Gaiola ${qrCode}?`)) return;
-
-            showNotification("Movendo para consertadas...", "#4a5568");
-            
-            const agora = new Date();
-            const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
-
-            const payload = {
-                qrCode: qrCode,
-                status: "Gaiola Consertada",
-                dataHora: dataFormatada
-            };
-
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
-            }).then(() => {
-                showNotification(`Sucesso! Gaiola ${qrCode} movida para 'Consertadas'.`, "#2f855a");
-                carregarDadosDaNuvem(); // Atualiza a lista na hora
-            }).catch(() => showNotification("Erro de conexão ao finalizar.", "#c53030"));
-        }
-
-        function filtrarHistoricoVisual() {
-            const termo = document.getElementById('search-input').value.toLowerCase();
-            const itensFila = document.querySelectorAll('#lista-entrega .cage-item');
-            
-            itensFila.forEach(item => {
-                const idGaiola = item.querySelector('.cage-id').innerText.toLowerCase();
-                if(idGaiola.includes(termo)) {
-                    item.style.display = 'block';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-
-        function onScanFailure(error) {}
-
-        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-            fps: 12, 
-            qrbox: 250, 
-            videoConstraints: { 
-                facingMode: { ideal: "environment" } 
-            }
-        });
-        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
-    </script>
-</body>
-</html>
+            <input type="text" id="search-input" class="search-box" placeholder="
