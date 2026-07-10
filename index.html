@@ -330,7 +330,7 @@
             showNotification("QR Code Lido! Tire a foto para concluir a triagem.", "#2b6cb0");
         }
 
-        // NOVA FUNÇÃO: Compacta a imagem do celular antes de enviar para não travar o Google
+        // Compacta a imagem do celular antes de enviar para não travar o Google
         function comprimirEResolverImagem(file) {
             return new Promise((resolve) => {
                 if (!file) {
@@ -347,7 +347,6 @@
                         let width = img.width;
                         let height = img.height;
                         
-                        // Redimensiona proporcionalmente para no máximo 900px de largura/altura
                         const MAX_SIZE = 900;
                         if (width > height) {
                             if (width > MAX_SIZE) {
@@ -366,7 +365,6 @@
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, width, height);
                         
-                        // Exporta como JPEG leve com qualidade otimizada (0.7)
                         const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
                         resolve({
                             base64: dataUrl.split(',')[1],
@@ -384,7 +382,6 @@
             showNotification("Compactando foto e enviando para a nuvem...", "#4a5568");
             
             const arquivoFoto = document.getElementById('foto-entrada').files[0];
-            // Executa a compactação inteligente
             const fotoDados = await comprimirEResolverImagem(arquivoFoto);
             
             const agora = new Date();
@@ -413,7 +410,7 @@
             }).catch(() => showNotification("Erro de conexão.", "#c53030"));
         }
 
-        // PUXA OS DADOS E CALCULA O STATUS ATUAL DE CADA GAIOLA (ATUALIZADO SEM CACHE)
+        // PUXA OS DADOS E CALCULA O STATUS ATUAL DE CADA GAIOLA
         function carregarDadosDaNuvem() {
             fetch(GOOGLE_SCRIPT_URL + "?_ts=" + Date.now())
                 .then(res => res.json())
@@ -493,12 +490,11 @@
             document.getElementById('lbl-saida').innerText = "Nenhuma foto tirada";
         }
 
-        // DISPARA A CONCLUSÃO (COMPACTADO)
+        // DISPARA A CONCLUSÃO
         async function enviarDadosSaida() {
-            showNotification("Compactando foto e finalizando manutenção...", "#4a5568");
+            showNotification("Finalizando manutenção e salvando foto...", "#4a5568");
             
             const arquivoFoto = document.getElementById('foto-saida').files[0];
-            // Executa a compactação inteligente
             const fotoDados = await comprimirEResolverImagem(arquivoFoto);
             
             const agora = new Date();
