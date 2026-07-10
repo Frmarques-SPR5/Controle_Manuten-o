@@ -9,7 +9,7 @@
 
     <style>
         :root {
-            --step1-color: #3182ce;
+            --blue-selected: #0056b3; /* Azul padrão para a aba selecionada */
             --step2-color: #dd6b20;
             --step3-color: #319795;
             --bg-color: #f7fafc;
@@ -63,9 +63,12 @@
             text-align: center;
         }
 
-        .nav-btn.active[data-tab="separacao"] { background: var(--step1-color); color: white; }
-        .nav-btn.active[data-tab="execucao"] { background: var(--step2-color); color: white; }
-        .nav-btn.active[data-tab="entrega"] { background: var(--step3-color); color: white; }
+        /* Força todas as abas a ficarem AZUIS quando estiverem ativas/selecionadas */
+        .nav-btn.active {
+            background-color: var(--blue-selected) !important;
+            color: white !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
@@ -100,7 +103,7 @@
             background: #edf2f7;
             padding: 12px;
             border-radius: 6px;
-            display: none; /* Aparece só após o QR ser lido */
+            display: none;
         }
 
         .file-input-wrapper {
@@ -176,6 +179,17 @@
             margin-top: 4px;
         }
 
+        /* Barra de Busca Geral */
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
         /* Notificação */
         #notification {
             display: none;
@@ -187,7 +201,7 @@
             color: white;
         }
 
-        /* Mini modal flutuante para a conclusão técnica */
+        /* Mini modal flutuante */
         .modal-concluir {
             display: none;
             position: fixed;
@@ -223,7 +237,7 @@
 
         <div id="panel-separacao" class="tab-panel active">
             <div class="card">
-                <h3 style="color: var(--step1-color)">Triagem: Entrada de Gaiola Avariada</h3>
+                <h3 style="color: #3182ce">Triagem: Entrada de Gaiola Avariada</h3>
                 <div id="reader"></div>
                 
                 <div id="separacao-action" class="action-box">
@@ -235,7 +249,7 @@
                     </label>
                     <span id="lbl-entrada" style="font-size:0.8rem; color:#718096; display:block; margin-bottom:10px;">Nenhuma foto tirada</span>
 
-                    <button class="btn-submit" style="background: var(--step1-color);" onclick="enviarDadosEntrada()">Salvar em 'Esperando Conserto'</button>
+                    <button class="btn-submit" style="background: #3182ce;" onclick="enviarDadosEntrada()">Salvar em 'Esperando Conserto'</button>
                 </div>
             </div>
         </div>
@@ -250,6 +264,8 @@
         </div>
 
         <div id="panel-entrega" class="tab-panel">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 Buscar gaiola no histórico geral..." oninput="filtrarHistoricoVisual()">
+            
             <div class="card">
                 <h3 style="color: var(--step3-color)">Histórico de Gaiolas Prontas / Entregues</h3>
                 <div id="lista-entrega" class="entrega">
@@ -284,6 +300,7 @@
         function switchTab(tabName) {
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
             document.getElementById(`panel-${tabName}`).classList.add('active');
             document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
             
@@ -313,7 +330,6 @@
             showNotification("QR Code Lido! Tire a foto para concluir a triagem.", "#2b6cb0");
         }
 
-        // Converte imagem para string para enviar via internet
         function converterParaBase64(file) {
             return new Promise((resolve, reject) => {
                 if (!file) resolve({ base64: "", type: "", name: "" });
@@ -328,7 +344,7 @@
             });
         }
 
-        // SALVA NA ETAPA 1: ESPERANDO CONSERTO
+        // SALVA NA ETAPA 1
         async function enviarDadosEntrada() {
             if(!infoGaiolaScaneada) return;
             showNotification("Processando e enviando para a planilha...", "#4a5568");
@@ -374,7 +390,6 @@
         }
 
         function processarEExibirListas() {
-            // Mapeia o último estado real de cada gaiola
             let estadoGaiolas = {};
             
             listaGlobalPlanilha.forEach(item => {
@@ -392,7 +407,6 @@
 
             Object.keys(estadoGaiolas).forEach(qr => {
                 const gaiola = estadoGaiolas[qr];
-                
                 let linkFotoHtml = gaiola.fotoUrl ? `<br><a href="${gaiola.fotoUrl}" target="_blank" class="photo-link">🖼️ Ver Foto</a>` : '';
 
                 if (gaiola.status === "Esperando Conserto") {
@@ -426,7 +440,6 @@
             if(totalProntas === 0) divEntrega.innerHTML = '<p style="text-align:center; color:#718096; font-style:italic;">Nenhum registro recente.</p>';
         }
 
-        // CONTROLE DO MODAL DE CONCLUSÃO
         function abrirModalConcluir(qrCode) {
             gaiolaSelecionadaParaConcluir = qrCode;
             document.getElementById('modal-txt-gaiola').innerText = qrCode;
@@ -441,7 +454,7 @@
             document.getElementById('lbl-saida').innerText = "Nenhuma foto tirada";
         }
 
-        // DISPARA A CONCLUSÃO (MOVE PARA CONSERTADAS)
+        // DISPARA A CONCLUSÃO
         async function enviarDadosSaida() {
             showNotification("Finalizando manutenção e salvando foto...", "#4a5568");
             
@@ -469,8 +482,23 @@
                 body: JSON.stringify(payload)
             }).then(() => {
                 showNotification("Sucesso! Gaiola movida para 'Consertadas'.", "#2f855a");
-                carregarDadosDaNuvem(); // Recarrega as listas automaticamente
+                carregarDadosDaNuvem();
             }).catch(() => showNotification("Erro de conexão ao finalizar.", "#c53030"));
+        }
+
+        // Filtra o histórico visualmente por código da gaiola
+        function filtrarHistoricoVisual() {
+            const termo = document.getElementById('search-input').value.toLowerCase();
+            const itensFila = document.querySelectorAll('#lista-entrega .cage-item');
+            
+            itensFila.forEach(item => {
+                const idGaiola = item.querySelector('.cage-id').innerText.toLowerCase();
+                if(idGaiola.includes(termo)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
         }
 
         function onScanFailure(error) {}
