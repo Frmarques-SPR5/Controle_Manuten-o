@@ -106,28 +106,6 @@
             display: none;
         }
 
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-            margin-bottom: 10px;
-        }
-
-        .btn-capture {
-            border: 2px solid #cbd5e0;
-            color: #4a5568;
-            background-color: white;
-            padding: 10px;
-            border-radius: 6px;
-            width: 100%;
-            font-weight: bold;
-            text-align: center;
-            box-sizing: border-box;
-            display: block;
-            cursor: pointer;
-        }
-
         .btn-submit {
             color: white;
             border: none;
@@ -142,7 +120,7 @@
         /* Estilos das listas dinâmicas */
         .cage-item {
             border-left: 5px solid #edf2f7;
-            padding: 10px;
+            padding: 12px;
             margin-bottom: 10px;
             background: #fff;
             border-radius: 0 6px 6px 0;
@@ -163,20 +141,13 @@
             background: #2b6cb0;
             color: white;
             border: none;
-            padding: 6px 12px;
+            padding: 8px 14px;
             border-radius: 4px;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 8px;
-        }
-
-        .photo-link {
-            font-size: 0.8rem;
-            color: #3182ce;
-            text-decoration: none;
-            display: inline-block;
-            margin-top: 4px;
+            margin-top: 10px;
+            width: 100%;
         }
 
         /* Barra de Busca Geral */
@@ -200,25 +171,6 @@
             margin-bottom: 15px;
             color: white;
         }
-
-        /* Mini modal flutuante */
-        .modal-concluir {
-            display: none;
-            position: fixed;
-            top: 20%; left: 5%; right: 5%;
-            background: white;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            padding: 20px;
-            border-radius: 8px;
-            z-index: 1000;
-        }
-        .backdrop {
-            display: none;
-            position: fixed;
-            top:0; left:0; right:0; bottom:0;
-            background: rgba(0,0,0,0.4);
-            z-index: 999;
-        }
     </style>
 </head>
 <body>
@@ -241,14 +193,7 @@
                 <div id="reader"></div>
                 
                 <div id="separacao-action" class="action-box">
-                    <p>Gaiola Identificada: <span id="txt-gaiola-entrada" style="font-weight:bold;">---</span></p>
-                    
-                    <label class="btn-capture">
-                        📸 Tirar Foto da Avaria
-                        <input type="file" id="foto-entrada" accept="image/*" capture="environment" style="display:none;" onchange="fileSelected('foto-entrada', 'lbl-entrada')">
-                    </label>
-                    <span id="lbl-entrada" style="font-size:0.8rem; color:#718096; display:block; margin-bottom:10px;">Nenhuma foto tirada</span>
-
+                    <p style="font-size: 1.1rem; margin-bottom: 15px;">Gaiola Identificada: <span id="txt-gaiola-entrada" style="font-weight:bold; color:#0056b3;">---</span></p>
                     <button class="btn-submit" style="background: #3182ce;" onclick="enviarDadosEntrada()">Salvar em 'Esperando Conserto'</button>
                 </div>
             </div>
@@ -276,26 +221,11 @@
 
     </div>
 
-    <div id="backdrop" class="backdrop" onclick="fecharModalConcluir()"></div>
-    <div id="modal-concluir" class="modal-concluir">
-        <h4 style="margin-top:0; color: var(--step2-color);">Concluir Manutenção</h4>
-        <p>Gaiola: <span id="modal-txt-gaiola" style="font-weight:bold;"></span></p>
-        
-        <label class="btn-capture">
-            📸 Foto do Serviço Executado
-            <input type="file" id="foto-saida" accept="image/*" capture="environment" style="display:none;" onchange="fileSelected('foto-saida', 'lbl-saida')">
-        </label>
-        <span id="lbl-saida" style="font-size:0.8rem; color:#718096; display:block; margin-bottom:15px;">Nenhuma foto tirada</span>
-
-        <button class="btn-submit" style="background: var(--step3-color);" onclick="enviarDadosSaida()">Finalizar e Mover para 'Consertadas'</button>
-    </div>
-
     <script>
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZpv1S-rvZeD7gVeQn4MY3mib9NfjeSeFsJAzHPFjD5rlHwipU2kO_XwOBlZ4p2csHYg/exec";
         
         let infoGaiolaScaneada = "";
         let listaGlobalPlanilha = [];
-        let gaiolaSelecionadaParaConcluir = "";
 
         function switchTab(tabName) {
             document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -314,12 +244,7 @@
             note.innerText = text;
             note.style.backgroundColor = bgColor;
             note.style.display = 'block';
-            setTimeout(() => { note.style.display = 'none'; }, 5000);
-        }
-
-        function fileSelected(inputId, labelId) {
-            const file = document.getElementById(inputId).files[0];
-            if(file) document.getElementById(labelId).innerText = "📸 Foto carregada com sucesso!";
+            setTimeout(() => { note.style.display = 'none'; }, 4000);
         }
 
         // Evento do Scanner QR
@@ -327,62 +252,13 @@
             infoGaiolaScaneada = decodedText;
             document.getElementById('txt-gaiola-entrada').innerText = decodedText;
             document.getElementById('separacao-action').style.display = 'block';
-            showNotification("QR Code Lido! Tire a foto para concluir a triagem.", "#2b6cb0");
+            showNotification("QR Code Lido! Clique no botão para confirmar a entrada.", "#2b6cb0");
         }
 
-        // Compacta a imagem do celular antes de enviar para não travar o Google
-        function comprimirEResolverImagem(file) {
-            return new Promise((resolve) => {
-                if (!file) {
-                    resolve({ base64: "", type: "", name: "" });
-                    return;
-                }
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = (event) => {
-                    const img = new Image();
-                    img.src = event.target.result;
-                    img.onload = () => {
-                        const canvas = document.createElement('canvas');
-                        let width = img.width;
-                        let height = img.height;
-                        
-                        const MAX_SIZE = 900;
-                        if (width > height) {
-                            if (width > MAX_SIZE) {
-                                height *= MAX_SIZE / width;
-                                width = MAX_SIZE;
-                            }
-                        } else {
-                            if (height > MAX_SIZE) {
-                                width *= MAX_SIZE / height;
-                                height = MAX_SIZE;
-                            }
-                        }
-                        
-                        canvas.width = width;
-                        canvas.height = height;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, width, height);
-                        
-                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                        resolve({
-                            base64: dataUrl.split(',')[1],
-                            type: 'image/jpeg',
-                            name: file.name.replace(/\.[^/.]+$/, "") + ".jpg"
-                        });
-                    };
-                };
-            });
-        }
-
-        // SALVA NA ETAPA 1 (COMPACTADO)
-        async function enviarDadosEntrada() {
+        // SALVA NA ETAPA 1
+        function enviarDadosEntrada() {
             if(!infoGaiolaScaneada) return;
-            showNotification("Compactando foto e enviando para a nuvem...", "#4a5568");
-            
-            const arquivoFoto = document.getElementById('foto-entrada').files[0];
-            const fotoDados = await comprimirEResolverImagem(arquivoFoto);
+            showNotification("Enviando dados para a nuvem...", "#4a5568");
             
             const agora = new Date();
             const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
@@ -390,10 +266,7 @@
             const payload = {
                 qrCode: infoGaiolaScaneada,
                 status: "Esperando Conserto",
-                dataHora: dataFormatada,
-                fotoBase64: fotoDados.base64,
-                fotoType: fotoDados.type,
-                fotoName: fotoDados.name
+                dataHora: dataFormatada
             };
 
             fetch(GOOGLE_SCRIPT_URL, {
@@ -402,15 +275,13 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             }).then(() => {
-                showNotification("Sucesso! Gaiola adicionada na fila de espera.", "#2f855a");
+                showNotification("Sucesso! Gaiola enviada para a oficina.", "#2f855a");
                 document.getElementById('separacao-action').style.display = 'none';
-                document.getElementById('foto-entrada').value = "";
-                document.getElementById('lbl-entrada').innerText = "Nenhuma foto tirada";
                 infoGaiolaScaneada = "";
             }).catch(() => showNotification("Erro de conexão.", "#c53030"));
         }
 
-        // PUXA OS DADOS E CALCULA O STATUS ATUAL DE CADA GAIOLA
+        // PUXA OS DADOS SEM CACHE
         function carregarDadosDaNuvem() {
             fetch(GOOGLE_SCRIPT_URL + "?_ts=" + Date.now())
                 .then(res => res.json())
@@ -442,7 +313,6 @@
 
             Object.keys(estadoGaiolas).forEach(qr => {
                 const gaiola = estadoGaiolas[qr];
-                let linkFotoHtml = gaiola.fotoUrl ? `<br><a href="${gaiola.fotoUrl}" target="_blank" class="photo-link">🖼️ Ver Foto</a>` : '';
                 let statusLimpo = String(gaiola.status).trim();
 
                 if (statusLimpo === "Esperando Conserto") {
@@ -453,11 +323,10 @@
                                 <span class="cage-id">📦 Gaiola: ${gaiola.qrCode}</span>
                                 <span class="cage-date">${gaiola.dataHora}</span>
                             </div>
-                            ${linkFotoHtml}
-                            <button class="btn-action-item" onclick="abrirModalConcluir('${gaiola.qrCode}')">🔧 Concluir Conserto</button>
+                            <button class="btn-action-item" onclick="finalizarManutencaoDireta('${gaiola.qrCode}')">🔧 Concluir Conserto</button>
                         </div>
                     `;
-                } else if (statusLimpo === "Gaiola Consertada" || statusLimpo === "Outros Serviços") {
+                } else if (statusLimpo === "Gaiola Consertada") {
                     totalProntas++;
                     divEntrega.innerHTML += `
                         <div class="cage-item">
@@ -465,8 +334,7 @@
                                 <span class="cage-id">✅ Gaiola: ${gaiola.qrCode}</span>
                                 <span class="cage-date">${gaiola.dataHora}</span>
                             </div>
-                            <span style="font-size:0.8rem; font-weight:bold; color:#2c7a7b;">${gaiola.status}</span>
-                            ${linkFotoHtml}
+                            <span style="font-size:0.8rem; font-weight:bold; color:#2c7a7b; display:block; margin-top:5px;">${gaiola.status}</span>
                         </div>
                     `;
                 }
@@ -476,40 +344,20 @@
             if(totalProntas === 0) divEntrega.innerHTML = '<p style="text-align:center; color:#718096; font-style:italic;">Nenhum registro recente.</p>';
         }
 
-        function abrirModalConcluir(qrCode) {
-            gaiolaSelecionadaParaConcluir = qrCode;
-            document.getElementById('modal-txt-gaiola').innerText = qrCode;
-            document.getElementById('modal-concluir').style.display = 'block';
-            document.getElementById('backdrop').style.display = 'block';
-        }
+        // CONCLUI O CONSERTO (SEM PRECISAR DE FOTO)
+        function finalizarManutencaoDireta(qrCode) {
+            if (!confirm(`Deseja finalizar o conserto da Gaiola ${qrCode}?`)) return;
 
-        function fecharModalConcluir() {
-            document.getElementById('modal-concluir').style.display = 'none';
-            document.getElementById('backdrop').style.display = 'none';
-            document.getElementById('foto-saida').value = "";
-            document.getElementById('lbl-saida').innerText = "Nenhuma foto tirada";
-        }
-
-        // DISPARA A CONCLUSÃO
-        async function enviarDadosSaida() {
-            showNotification("Finalizando manutenção e salvando foto...", "#4a5568");
-            
-            const arquivoFoto = document.getElementById('foto-saida').files[0];
-            const fotoDados = await comprimirEResolverImagem(arquivoFoto);
+            showNotification("Movendo para consertadas...", "#4a5568");
             
             const agora = new Date();
             const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
 
             const payload = {
-                qrCode: gaiolaSelecionadaParaConcluir,
+                qrCode: qrCode,
                 status: "Gaiola Consertada",
-                dataHora: dataFormatada,
-                fotoBase64: fotoDados.base64,
-                fotoType: fotoDados.type,
-                fotoName: fotoDados.name
+                dataHora: dataFormatada
             };
-
-            fecharModalConcluir();
 
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
@@ -517,8 +365,8 @@
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             }).then(() => {
-                showNotification("Sucesso! Gaiola movida para 'Consertadas'.", "#2f855a");
-                carregarDadosDaNuvem();
+                showNotification(`Sucesso! Gaiola ${qrCode} movida para 'Consertadas'.`, "#2f855a");
+                carregarDadosDaNuvem(); // Atualiza a lista na hora
             }).catch(() => showNotification("Erro de conexão ao finalizar.", "#c53030"));
         }
 
