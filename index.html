@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manutenção SPR5 - Google Sheets</title>
     
+    <!-- Biblioteca do Leitor de QR Code -->
     <script src="https://unpkg.com/html5-qrcode"></script>
 
     <style>
@@ -39,7 +40,37 @@
             padding: 0 12px;
         }
 
-        /* Abas Estilo Seletor de Status */
+        /* Menu de Abas Principais */
+        .main-nav {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
+            background-color: var(--card-bg);
+            border-radius: 8px 8px 0 0;
+        }
+
+        .nav-btn {
+            flex: 1;
+            background: none;
+            border: none;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #718096;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .nav-btn.active {
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Seletor de Status */
         .status-selector {
             display: flex;
             background: #e2e8f0;
@@ -77,7 +108,6 @@
             margin-bottom: 15px;
         }
 
-        /* Feedback de Envio */
         #notification {
             display: none;
             padding: 12px;
@@ -85,12 +115,21 @@
             text-align: center;
             font-weight: bold;
             margin-bottom: 15px;
-            animation: fadeIn 0.3s;
         }
         .success-note { background-color: #d4edda; color: #155724; }
         .error-note { background-color: #f8d7da; color: #721c24; }
 
-        /* Histórico Local das últimas leituras */
+        /* Aba de Histórico */
+        .search-box {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-sizing: border-box;
+            font-size: 1rem;
+        }
+
         .history-box {
             background: var(--card-bg);
             padding: 15px;
@@ -98,45 +137,38 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         }
 
-        .history-box h3 {
-            margin-top: 0;
-            font-size: 1rem;
-            color: #4a5568;
-            border-bottom: 1px solid #edf2f7;
-            padding-bottom: 6px;
-        }
-
         .item-list {
             list-style: none;
             padding: 0;
             margin: 0;
-            max-height: 200px;
+            max-height: 380px;
             overflow-y: auto;
         }
 
         .item-list li {
-            padding: 10px 0;
+            padding: 12px 0;
             border-bottom: 1px solid #f0f4f8;
             display: flex;
             flex-direction: column;
-            font-size: 0.9rem;
+            font-size: 0.95rem;
         }
         .item-list li:last-child { border-bottom: none; }
 
         .row-top { display: flex; justify-content: space-between; font-weight: bold; }
-        .row-sub { font-size: 0.75rem; color: #a0aec0; margin-top: 2px; }
+        .row-sub { font-size: 0.8rem; color: #a0aec0; margin-top: 4px; }
         
         .badge {
-            padding: 2px 6px;
+            padding: 3px 8px;
             border-radius: 4px;
             font-size: 0.75rem;
             color: white;
-            background-color: #718096;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
+        .loading-msg {
+            text-align: center;
+            color: #718096;
+            font-style: italic;
+            padding: 20px 0;
         }
     </style>
 </head>
@@ -146,36 +178,61 @@
 
     <div class="container">
         
-        <label style="font-weight: bold; font-size: 0.9rem; display:block; margin-bottom: 5px;">1. Selecione o Status Atual:</label>
-        <div class="status-selector">
-            <button class="status-btn active" onclick="setStatus('Gaiolas Pendentes')">Gaiolas Pendentes</button>
-            <button class="status-btn" onclick="setStatus('Gaiolas para Conserto')">Para Conserto</button>
-            <button class="status-btn" onclick="setStatus('Outros Serviços')">Outros Serviços</button>
+        <!-- Abas de Navegação Principal -->
+        <div class="main-nav">
+            <button class="nav-btn active" onclick="switchMainTab('escanear')">📷 Escanear</button>
+            <button class="nav-btn" onclick="switchMainTab('historico')">📋 Histórico Global</button>
         </div>
 
-        <div id="notification"></div>
+        <!-- ABA 1: ESCANEAR -->
+        <div id="panel-escanear" class="tab-panel active">
+            <label style="font-weight: bold; font-size: 0.9rem; display:block; margin-bottom: 5px;">1. Selecione o Status Atual:</label>
+            <div class="status-selector">
+                <button class="status-btn active" onclick="setStatus('Gaiolas Pendentes')">Gaiolas Pendentes</button>
+                <button class="status-btn" onclick="setStatus('Gaiolas para Conserto')">Para Conserto</button>
+                <button class="status-btn" onclick="setStatus('Outros Serviços')">Outros Serviços</button>
+            </div>
 
-        <label style="font-weight: bold; font-size: 0.9rem; display:block; margin-bottom: 5px;">2. Aponte a Câmera para o QR Code:</label>
-        <div id="reader"></div>
+            <div id="notification"></div>
 
-        <div class="history-box">
-            <h3>Envios Recentes (Neste Aparelho)</h3>
-            <ul id="local-history" class="item-list">
-                <li style="color:#718096; font-style:italic; text-align:center;">Nenhum escaneamento feito ainda nesta sessão.</li>
-            </ul>
+            <label style="font-weight: bold; font-size: 0.9rem; display:block; margin-bottom: 5px;">2. Aponte a Câmera Traseira:</label>
+            <div id="reader"></div>
+        </div>
+
+        <!-- ABA 2: HISTÓRICO GLOBAL -->
+        <div id="panel-historico" class="tab-panel">
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 Buscar gajola no histórico geral..." oninput="filtrarHistoricoVisual()">
+
+            <div class="history-box">
+                <ul id="global-history-list" class="item-list">
+                    <li class="loading-msg">Clique na aba para carregar os dados...</li>
+                </ul>
+            </div>
         </div>
 
     </div>
 
     <script>
-        // Link integrado com sucesso!
+        // Seu link do Google Sheets integrado
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZpv1S-rvZeD7gVeQn4MY3mib9NfjeSeFsJAzHPFjD5rlHwipU2kO_XwOBlZ4p2csHYg/exec";
 
         let statusAtual = "Gaiolas Pendentes";
         let ultimoQRLido = "";
         let ultimoTempoLeitura = 0;
+        let dadosHistoricoServidor = []; // Guarda o histórico vindo do Google Sheets
 
-        // Altera o status ativo ao clicar nas abas
+        function switchMainTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+            document.getElementById(`panel-${tabName}`).classList.add('active');
+            event.currentTarget.classList.add('active');
+            
+            if (tabName === 'historico') {
+                carregarHistoricoDaNuvem();
+            }
+        }
+
         function setStatus(novoStatus) {
             statusAtual = novoStatus;
             document.querySelectorAll('.status-btn').forEach(btn => {
@@ -186,7 +243,6 @@
             });
         }
 
-        // Exibe avisos na tela
         function showNotification(text, type) {
             const note = document.getElementById('notification');
             note.innerText = text;
@@ -195,76 +251,100 @@
             setTimeout(() => { note.style.display = 'none'; }, 4000);
         }
 
-        // Quando o QR Code é lido com sucesso
+        // Envia dados para a planilha
         function onScanSuccess(decodedText, decodedResult) {
             const agoraMs = Date.now();
-            
-            // Trava de segurança: Evita ler o mesmo QR Code várias vezes seguidas por acidente (intervalo de 3 segundos)
-            if (decodedText === ultimoQRLido && (agoraMs - ultimoTempoLeitura) < 3000) {
-                return; 
-            }
+            if (decodedText === ultimoQRLido && (agoraMs - ultimoTempoLeitura) < 3000) return; 
             
             ultimoQRLido = decodedText;
             ultimoTempoLeitura = agoraMs;
 
-            // Formata a data atual do envio
             const agora = new Date();
             const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit', second:'2-digit'});
 
-            // Mostra feedback visual imediato de carregamento
             showNotification(`Enviando Gaiola ${decodedText}...`, 'success');
 
-            // Organiza o pacote de dados
             const dadosManutencao = {
                 qrCode: decodedText,
                 status: statusAtual,
                 dataHora: dataFormatada
             };
 
-            // Envia os dados para a Planilha do Google via POST em segundo plano
             fetch(GOOGLE_SCRIPT_URL, {
                 method: "POST",
-                mode: "no-cors", // Evita problemas de política de segurança de navegadores (CORS)
+                mode: "no-cors",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(dadosManutencao)
             })
             .then(() => {
-                showNotification(`Sucesso! Gaiola ${decodedText} enviada para a Planilha.`, 'success');
-                adicionarAoHistoricoLocal(dadosManutencao);
+                showNotification(`Sucesso! Gaiola ${decodedText} salva na planilha.`, 'success');
             })
             .catch(error => {
-                console.error("Erro ao enviar:", error);
-                showNotification("Erro ao salvar na planilha. Verifique a internet.", 'error');
+                showNotification("Erro ao salvar. Verifique a conexão.", 'error');
             });
         }
 
-        // Adiciona o item na lista visual de histórico do celular
-        function adicionarAoHistoricoLocal(item) {
-            const lista = document.getElementById('local-history');
-            
-            // Remove a mensagem de "Nenhum escaneamento" se for o primeiro item
-            if(lista.innerText.includes("Nenhum escaneamento")) {
-                lista.innerHTML = '';
+        // PUXA OS DADOS DO GOOGLE SHEETS EM TEMPO REAL
+        function carregarHistoricoDaNuvem() {
+            const lista = document.getElementById('global-history-list');
+            lista.innerHTML = `<li class="loading-msg">🔄 Carregando histórico da nuvem...</li>`;
+
+            fetch(GOOGLE_SCRIPT_URL)
+                .then(response => response.json())
+                .then(data => {
+                    dadosHistoricoServidor = data; // Armazena os dados globais
+                    exibirHistoricoNaTela(dadosHistoricoServidor);
+                })
+                .catch(error => {
+                    console.error("Erro ao buscar histórico:", error);
+                    lista.innerHTML = `<li class="loading-msg" style="color:#e53e3e;">❌ Erro ao carregar histórico. Verifique a internet.</li>`;
+                });
+        }
+
+        // Renderiza os dados recebidos na tela
+        function exibirHistoricoNaTela(itens) {
+            const lista = document.getElementById('global-history-list');
+            lista.innerHTML = '';
+
+            if (!itens || itens.length === 0) {
+                lista.innerHTML = `<li class="loading-msg">Nenhum registro encontrado na planilha.</li>`;
+                return;
             }
 
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <div class="row-top">
-                    <span>${item.qrCode}</span>
-                    <span class="badge" style="background-color: ${item.status.includes('Conserto') ? '#dd6b20' : item.status.includes('Pendentes') ? '#3182ce' : '#319795'}">${item.status}</span>
-                </div>
-                <div class="row-sub">${item.dataHora} - Enviado para Nuvem</div>
-            `;
-            
-            lista.insertBefore(li, lista.firstChild); // Coloca sempre o mais recente no topo
+            itens.forEach(item => {
+                const li = document.createElement('li');
+                let badgeColor = '#319795'; // Outros
+                if (item.status.includes('Conserto')) badgeColor = '#dd6b20';
+                if (item.status.includes('Pendentes')) badgeColor = '#3182ce';
+
+                li.innerHTML = `
+                    <div class="row-top">
+                        <span>Gaiola: ${item.qrCode}</span>
+                        <span class="badge" style="background-color: ${badgeColor}">${item.status}</span>
+                    </div>
+                    <div class="row-sub">📅 ${item.dataHora}</div>
+                `;
+                lista.appendChild(li);
+            });
         }
 
-        function onScanFailure(error) {
-            // Falhas de foco contínuas da câmera são normais, deixamos em branco para rodar liso.
+        // Filtra os dados da nuvem localmente pela barra de pesquisa
+        function filtrarHistoricoVisual() {
+            const termo = document.getElementById('search-input').value.toLowerCase();
+            const itensFiltrados = dadosHistoricoServidor.filter(item => 
+                String(item.qrCode).toLowerCase().includes(termo) || 
+                String(item.status).toLowerCase().includes(termo)
+            );
+            exibirHistoricoNaTela(itensFiltrados);
         }
 
-        // Liga o leitor de QR Code
-        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 12, qrbox: 250 });
+        function onScanFailure(error) {}
+
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 12, 
+            qrbox: 250,
+            videoConstraints: { facingMode: "environment" }
+        });
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
 </body>
