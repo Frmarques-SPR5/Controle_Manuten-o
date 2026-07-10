@@ -72,7 +72,7 @@
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
 
-        /* Cards */
+        /* Cards e Inputs */
         .card {
             background: var(--card-bg);
             padding: 15px;
@@ -104,6 +104,17 @@
             display: none;
         }
 
+        .text-field {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cbd5e0;
+            border-radius: 6px;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+            font-family: inherit;
+        }
+
         .btn-submit {
             color: white;
             border: none;
@@ -115,7 +126,7 @@
             cursor: pointer;
         }
 
-        /* Itens da Lista */
+        /* Lista de Itens */
         .cage-item {
             border-left: 5px solid #edf2f7;
             padding: 12px;
@@ -167,6 +178,27 @@
             margin-bottom: 15px;
             color: white;
         }
+
+        /* Modal customizado para fechamento */
+        .modal-concluir {
+            display: none;
+            position: fixed;
+            top: 8%; left: 4%; right: 4%;
+            background: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+            padding: 18px;
+            border-radius: 8px;
+            z-index: 1000;
+            max-height: 84%;
+            overflow-y: auto;
+        }
+        .backdrop {
+            display: none;
+            position: fixed;
+            top:0; left:0; right:0; bottom:0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
     </style>
 </head>
 <body>
@@ -189,7 +221,11 @@
                 <div id="reader"></div>
                 
                 <div id="separacao-action" class="action-box">
-                    <p style="font-size: 1.1rem; margin-bottom: 15px;">Gaiola Identificada: <span id="txt-gaiola-entrada" style="font-weight:bold; color:#0056b3;">---</span></p>
+                    <p style="font-size: 1.1rem; margin-bottom: 12px;">Gaiola Identificada: <span id="txt-gaiola-entrada" style="font-weight:bold; color:#0056b3;">---</span></p>
+                    
+                    <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">Problema Apresentado na Triagem:</label>
+                    <textarea id="input-problema-separacao" class="text-field" rows="2" placeholder="Ex: Roda dianteira travada, amassada..."></textarea>
+                    
                     <button class="btn-submit" style="background: #3182ce;" onclick="enviarDadosEntrada()">Salvar em 'Esperando Conserto'</button>
                 </div>
             </div>
@@ -205,4 +241,254 @@
         </div>
 
         <div id="panel-entrega" class="tab-panel">
-            <input type="text" id="search-input" class="search-box" placeholder="
+            <input type="text" id="search-input" class="search-box" placeholder="🔍 Buscar gaiola no histórico geral..." oninput="filtrarHistoricoVisual()">
+            
+            <div class="card">
+                <h3 style="color: var(--step3-color)">Histórico de Gaiolas Prontas / Entregues</h3>
+                <div id="lista-entrega" class="entrega">
+                    <p style="text-align:center; color:#718096; font-style:italic;">Carregando histórico...</p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="backdrop" class="backdrop" onclick="fecharModalConcluir()"></div>
+    <div id="modal-concluir" class="modal-concluir">
+        <h4 style="margin-top:0; color: #1a202c; border-bottom:2px solid #edf2f7; padding-bottom:8px; font-size:1.1rem;">Finalizar Manutenção</h4>
+        <p style="margin:8px 0;">Gaiola: <span id="modal-txt-gaiola" style="font-weight:bold; color:#0056b3;"></span></p>
+        <p style="font-size:0.85rem; background:#edf2f7; padding:8px; border-radius:6px; margin-bottom:15px;">
+            <strong>⚠️ Problema na Triagem:</strong> <span id="modal-txt-problema-orig" style="font-style:italic;"></span>
+        </p>
+        
+        <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">Problema Constatado / Serviço na Execução:</label>
+        <textarea id="input-problema-execucao" class="text-field" rows="2" placeholder="Ex: Trocado rolamento da roda e alinhado estrutura..."></textarea>
+
+        <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">Observação de Entrega:</label>
+        <input type="text" id="input-observacao-entrega" class="text-field" placeholder="Ex: Liberada para operação do Turno A">
+
+        <label style="font-weight:bold; font-size:0.85rem; display:block; margin-bottom:4px;">O problema foi solucionado?</label>
+        <select id="select-solucionado" class="text-field" style="font-size:0.95rem; height:40px;">
+            <option value="Sim">🟢 Sim, totalmente resolvido</option>
+            <option value="Não">🔴 Não, necessita de novos reparos</option>
+        </select>
+
+        <button class="btn-submit" style="background: var(--step3-color);" onclick="enviarDadosSaida()">Concluir e Mover para 'Consertadas'</button>
+    </div>
+
+    <script>
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzZpv1S-rvZeD7gVeQn4MY3mib9NfjeSeFsJAzHPFjD5rlHwipU2kO_XwOBlZ4p2csHYg/exec";
+        
+        let infoGaiolaScaneada = "";
+        let listaGlobalPlanilha = [];
+        let gaiolaSelecionadaParaConcluir = "";
+        let problemaSeparacaoOriginal = "";
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(`panel-${tabName}`).classList.add('active');
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+            
+            if (tabName === 'execucao' || tabName === 'entrega') {
+                carregarDadosDaNuvem();
+            }
+        }
+
+        function showNotification(text, bgColor) {
+            const note = document.getElementById('notification');
+            note.innerText = text;
+            note.style.backgroundColor = bgColor;
+            note.style.display = 'block';
+            setTimeout(() => { note.style.display = 'none'; }, 4000);
+        }
+
+        function onScanSuccess(decodedText, decodedResult) {
+            infoGaiolaScaneada = decodedText;
+            document.getElementById('txt-gaiola-entrada').innerText = decodedText;
+            document.getElementById('separacao-action').style.display = 'block';
+            showNotification("QR Code Lido! Digite o problema apresentado para prosseguir.", "#2b6cb0");
+        }
+
+        // SALVA DA ETAPA 1
+        function enviarDadosEntrada() {
+            if(!infoGaiolaScaneada) return;
+            const probSeparacao = document.getElementById('input-problema-separacao').value.trim();
+            
+            showNotification("Enviando dados para a nuvem...", "#4a5568");
+            
+            const agora = new Date();
+            const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
+
+            const payload = {
+                qrCode: infoGaiolaScaneada,
+                status: "Esperando Conserto",
+                dataHora: dataFormatada,
+                problemaSeparacao: probSeparacao || "Não informado"
+            };
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                showNotification("Sucesso! Gaiola enviada para a oficina.", "#2f855a");
+                document.getElementById('separacao-action').style.display = 'none';
+                document.getElementById('input-problema-separacao').value = "";
+                infoGaiolaScaneada = "";
+            }).catch(() => showNotification("Erro de conexão.", "#c53030"));
+        }
+
+        function carregarDadosDaNuvem() {
+            fetch(GOOGLE_SCRIPT_URL + "?_ts=" + Date.now())
+                .then(res => res.json())
+                .then(data => {
+                    listaGlobalPlanilha = data;
+                    processarEExibirListas();
+                })
+                .catch((err) => {
+                    console.error(err);
+                    showNotification("Erro ao atualizar dados da nuvem.", "#c53030");
+                });
+        }
+
+        function processarEExibirListas() {
+            let estadoGaiolas = {};
+            
+            listaGlobalPlanilha.forEach(item => {
+                estadoGaiolas[item.qrCode] = item;
+            });
+
+            const divExecucao = document.getElementById('lista-execucao');
+            const divEntrega = document.getElementById('lista-entrega');
+            
+            divExecucao.innerHTML = "";
+            divEntrega.innerHTML = "";
+
+            let totalPendentes = 0;
+            let totalProntas = 0;
+
+            Object.keys(estadoGaiolas).forEach(qr => {
+                const gaiola = estadoGaiolas[qr];
+                let statusLimpo = String(gaiola.status).trim();
+
+                if (statusLimpo === "Esperando Conserto") {
+                    totalPendentes++;
+                    // Escapa aspas para evitar quebra no HTML
+                    let probSeguro = (gaiola.problemaSeparacao || "Não informado").replace(/'/g, "\\'").replace(/"/g, '\\"');
+                    
+                    divExecucao.innerHTML += `
+                        <div class="cage-item">
+                            <div class="cage-row">
+                                <span class="cage-id">📦 Gaiola: ${gaiola.qrCode}</span>
+                                <span class="cage-date">${gaiola.dataHora}</span>
+                            </div>
+                            <p style="margin: 6px 0 0 0; font-size:0.85rem; color:#4a5568;"><strong>⚠️ Problema Triado:</strong> ${gaiola.problemaSeparacao || 'Não informado'}</p>
+                            <button class="btn-action-item" onclick="abrirModalConcluir('${gaiola.qrCode}', '${probSeguro}')">🔧 Informar Reparo</button>
+                        </div>
+                    `;
+                } else if (statusLimpo === "Gaiola Consertada") {
+                    totalProntas++;
+                    let corBadge = gaiola.solucionado === "Não" ? "#e53e3e" : "#2c7a7b";
+                    
+                    divEntrega.innerHTML += `
+                        <div class="cage-item">
+                            <div class="cage-row">
+                                <span class="cage-id">✅ Gaiola: ${gaiola.qrCode}</span>
+                                <span class="cage-date">${gaiola.dataHora}</span>
+                            </div>
+                            <div style="font-size:0.85rem; margin-top:6px; color:#4a5568; line-height:1.4;">
+                                <p style="margin:2px 0;"><strong>⚠️ Triagem:</strong> ${gaiola.problemaSeparacao || '---'}</p>
+                                <p style="margin:2px 0;"><strong>🔧 Oficina:</strong> ${gaiola.problemaExecucao || '---'}</p>
+                                <p style="margin:2px 0;"><strong>📋 Obs Entrega:</strong> ${gaiola.observacaoEntrega || '---'}</p>
+                            </div>
+                            <span style="background-color: ${corBadge}; display:inline-block; margin-top:6px; color:white; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold;">
+                                Solucionado: ${gaiola.solucionado || 'Sim'}
+                            </span>
+                        </div>
+                    `;
+                }
+            });
+
+            if(totalPendentes === 0) divExecucao.innerHTML = '<p style="text-align:center; color:#718096; font-style:italic;">Oficina limpa! Nenhuma gaiola pendente.</p>';
+            if(totalProntas === 0) divEntrega.innerHTML = '<p style="text-align:center; color:#718096; font-style:italic;">Nenhum registro recente.</p>';
+        }
+
+        function abrirModalConcluir(qrCode, problemaTriagem) {
+            gaiolaSelecionadaParaConcluir = qrCode;
+            problemaSeparacaoOriginal = problemaTriagem;
+            
+            document.getElementById('modal-txt-gaiola').innerText = qrCode;
+            document.getElementById('modal-txt-problema-orig').innerText = problemaTriagem;
+            
+            document.getElementById('modal-concluir').style.display = 'block';
+            document.getElementById('backdrop').style.display = 'block';
+        }
+
+        function fecharModalConcluir() {
+            document.getElementById('modal-concluir').style.display = 'none';
+            document.getElementById('backdrop').style.display = 'none';
+            document.getElementById('input-problema-execucao').value = "";
+            document.getElementById('input-observacao-entrega').value = "";
+            document.getElementById('select-solucionado').value = "Sim";
+        }
+
+        // SALVA DA ETAPA 2 PARA A 3
+        function enviarDadosSaida() {
+            const probExecucao = document.getElementById('input-problema-execucao').value.trim();
+            const obsEntrega = document.getElementById('input-observacao-entrega').value.trim();
+            const resolvido = document.getElementById('select-solucionado').value;
+
+            showNotification("Salvando encerramento técnico...", "#4a5568");
+            
+            const agora = new Date();
+            const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
+
+            const payload = {
+                qrCode: gaiolaSelecionadaParaConcluir,
+                status: "Gaiola Consertada",
+                dataHora: dataFormatada,
+                problemaSeparacao: problemaSeparacaoOriginal, // Carrega o histórico da triagem junto
+                problemaExecucao: probExecucao || "Não informado",
+                observacaoEntrega: obsEntrega || "Sem observações",
+                solucionado: resolvido
+            };
+
+            fecharModalConcluir();
+
+            fetch(GOOGLE_SCRIPT_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                showNotification(`Sucesso! Gaiola ${gaiolaSelecionadaParaConcluir} atualizada.`, "#2f855a");
+                carregarDadosDaNuvem(); 
+            }).catch(() => showNotification("Erro de conexão ao finalizar.", "#c53030"));
+        }
+
+        function filtrarHistoricoVisual() {
+            const termo = document.getElementById('search-input').value.toLowerCase();
+            const itensFila = document.querySelectorAll('#lista-entrega .cage-item');
+            
+            itensFila.forEach(item => {
+                const idGaiola = item.querySelector('.cage-id').innerText.toLowerCase();
+                if(idGaiola.includes(termo)) {
+                    item.style.display = 'block';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        function onScanFailure(error) {}
+
+        let html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
+            fps: 12, qrbox: 250, videoConstraints: { facingMode: { ideal: "environment" } }
+        });
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    </script>
+</body>
+</html>
