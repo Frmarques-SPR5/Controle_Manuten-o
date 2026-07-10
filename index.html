@@ -330,27 +330,62 @@
             showNotification("QR Code Lido! Tire a foto para concluir a triagem.", "#2b6cb0");
         }
 
-        function converterParaBase64(file) {
-            return new Promise((resolve, reject) => {
-                if (!file) resolve({ base64: "", type: "", name: "" });
+        // NOVA FUNÇÃO: Compacta a imagem do celular antes de enviar para não travar o Google
+        function comprimirEResolverImagem(file) {
+            return new Promise((resolve) => {
+                if (!file) {
+                    resolve({ base64: "", type: "", name: "" });
+                    return;
+                }
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = () => resolve({
-                    base64: reader.result.split(",")[1],
-                    type: file.type,
-                    name: file.name
-                });
-                reader.onerror = error => reject(error);
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let width = img.width;
+                        let height = img.height;
+                        
+                        // Redimensiona proporcionalmente para no máximo 900px de largura/altura
+                        const MAX_SIZE = 900;
+                        if (width > height) {
+                            if (width > MAX_SIZE) {
+                                height *= MAX_SIZE / width;
+                                width = MAX_SIZE;
+                            }
+                        } else {
+                            if (height > MAX_SIZE) {
+                                width *= MAX_SIZE / height;
+                                height = MAX_SIZE;
+                            }
+                        }
+                        
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, width, height);
+                        
+                        // Exporta como JPEG leve com qualidade otimizada (0.7)
+                        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+                        resolve({
+                            base64: dataUrl.split(',')[1],
+                            type: 'image/jpeg',
+                            name: file.name.replace(/\.[^/.]+$/, "") + ".jpg"
+                        });
+                    };
+                };
             });
         }
 
-        // SALVA NA ETAPA 1
+        // SALVA NA ETAPA 1 (COMPACTADO)
         async function enviarDadosEntrada() {
             if(!infoGaiolaScaneada) return;
-            showNotification("Processando e enviando para a planilha...", "#4a5568");
+            showNotification("Compactando foto e enviando para a nuvem...", "#4a5568");
             
             const arquivoFoto = document.getElementById('foto-entrada').files[0];
-            const fotoDados = await converterParaBase64(arquivoFoto);
+            // Executa a compactação inteligente
+            const fotoDados = await comprimirEResolverImagem(arquivoFoto);
             
             const agora = new Date();
             const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
@@ -458,12 +493,13 @@
             document.getElementById('lbl-saida').innerText = "Nenhuma foto tirada";
         }
 
-        // DISPARA A CONCLUSÃO
+        // DISPARA A CONCLUSÃO (COMPACTADO)
         async function enviarDadosSaida() {
-            showNotification("Finalizando manutenção e salvando foto...", "#4a5568");
+            showNotification("Compactando foto e finalizando manutenção...", "#4a5568");
             
             const arquivoFoto = document.getElementById('foto-saida').files[0];
-            const fotoDados = await converterParaBase64(arquivoFoto);
+            // Executa a compactação inteligente
+            const fotoDados = await comprimirEResolverImagem(arquivoFoto);
             
             const agora = new Date();
             const dataFormatada = agora.toLocaleDateString('pt-BR') + ' ' + agora.toLocaleTimeString('pt-BR');
@@ -507,7 +543,11 @@
         function onScanFailure(error) {}
 
         let html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-            fps: 12, qrbox: 250, videoConstraints: { facingMode: "environment" }
+            fps: 12, 
+            qrbox: 250, 
+            videoConstraints: { 
+                facingMode: { ideal: "environment" } 
+            }
         });
         html5QrcodeScanner.render(onScanSuccess, onScanFailure);
     </script>
